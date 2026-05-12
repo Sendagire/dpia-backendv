@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+litellm
+python-docx
+pydantic
