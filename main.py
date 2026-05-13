@@ -83,3 +83,28 @@ async def generate_final_report(data: FinalReportRequest):
         return FileResponse(path=file_name, filename="DPIA.docx", media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     except Exception as e:
         return {"status": "error", "message": str(e)}
+        @app.post("/api/analyze")
+async def analyze_risks(data: ProjectDetails):
+    prompt = f"""...""" # (Keep your prompt)
+    try:
+        # EXPLICITLY pass the API key from your environment
+        response = completion(
+            model="anthropic/claude-3-5-sonnet-20240620", 
+            messages=[{"role": "user", "content": prompt}],
+            api_key=os.environ.get("ANTHROPIC_API_KEY") # <--- THIS IS THE FIX
+        )
+        return {"status": "success", "risks": response.choices[0].message.content}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# (DO THE SAME FOR YOUR generate_final_report FUNCTION)
+@app.post("/api/generate-report")
+async def generate_final_report(data: FinalReportRequest):
+    prompt = f"""...""" # (Keep your prompt)
+    try:
+        response = completion(
+            model="anthropic/claude-3-5-sonnet-20240620", 
+            messages=[{"role": "user", "content": prompt}],
+            api_key=os.environ.get("ANTHROPIC_API_KEY") # <--- THIS IS THE FIX
+        )
+        # ... (rest of your docx logic) ...
