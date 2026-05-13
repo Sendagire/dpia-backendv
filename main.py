@@ -45,7 +45,7 @@ async def analyze_risks(data: ProjectDetails):
     """
     try:
         # Using Claude 3.5 Sonnet
-        response = completion(model="claude-3-5-sonnet-20241022", messages=[{"role": "user", "content": prompt}])
+        response = completion(model="anthropic/claude-3-5-sonnet-20241022", messages=[{"role": "user", "content": prompt}])
         return {"status": "success", "risks": response.choices[0].message.content}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -66,7 +66,7 @@ async def generate_final_report(data: FinalReportRequest):
     DO NOT use "AI" or "Artificial Intelligence". Read as an internal Privacy Team document. Use **bold text** for emphasis.
     """
     try:
-        response = completion(model="claude-3-5-sonnet-20241022", messages=[{"role": "user", "content": prompt}])
+        response = completion(model="anthropic/claude-3-5-sonnet-20241022", messages=[{"role": "user", "content": prompt}])
         ai_report = response.choices[0].message.content
         
         doc = Document()
