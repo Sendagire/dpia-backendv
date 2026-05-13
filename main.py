@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -9,7 +9,6 @@ from docx.shared import Pt, RGBColor
 
 app = FastAPI(title="DPIA Enterprise API")
 
-# Ensure this matches your CORS requirements
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,13 +26,16 @@ class ProjectDetails(BaseModel):
     third_parties: str
     initial_risk: str
 
+class FinalReportRequest(ProjectDetails):
+    identified_risks: str
+
 @app.post("/api/analyze")
 async def analyze_risks(data: ProjectDetails):
     prompt = f"Identify 3 privacy risks for: {data.project_name}. Provide Description and Mitigation."
     try:
-        # Note the comma at the end of the messages line
+        # Use the latest Anthropic model name
         response = completion(
-            model="anthropic/claude-3-5-sonnet-20240620", 
+            model="claude-3-5-sonnet-20241022", 
             messages=[{"role": "user", "content": prompt}],
             api_key=os.environ.get("ANTHROPIC_API_KEY")
         )
@@ -41,4 +43,24 @@ async def analyze_risks(data: ProjectDetails):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# (Include your generate-report function here with the SAME api_key fix)
+@app.post("/api/generate-report")
+async def generate_final_report(data: FinalReportRequest):
+    prompt = f"Act as a Privacy Counsel. Write a DPIA for {data.project_name}. Risks: {data.identified_risks}. Include a Markdown table for Risks | Mitigation | Evidence Required."
+    try:
+        response = completion(
+            model="claude-3-5-sonnet-20241022", 
+            messages=[{"role": "user", "content": prompt}],
+            api_key=os.environ.get("ANTHROPIC_API_KEY")
+        )
+        ai_report = response.choices[0].message.content
+        
+        doc = Document()
+        doc.add_heading('Data Protection Impact Assessment', 0)
+        doc.add_paragraph(ai_report)
+        
+        file_path = f"/tmp/{data.project_name.replace(' ', '_')}_DPIA.docx"
+        doc.save(file_path)
+        
+        return FileResponse(path=file_path, filename="DPIA.docx", media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
