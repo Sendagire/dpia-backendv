@@ -62,7 +62,7 @@ async def analyze_risks(data: ProjectDetails):
     prompt = f"""Identify 3 privacy risks for: {data.project_name}. For each, provide Risk Description and Mitigation. Format as a clean list."""
     try:
         # USING THE RELIABLE ALIAS
-        response = completion(model="anthropic/claude-3-5-sonnet-20240620", messages=[{"role": "user", "content": prompt}])
+        response = completion(model="claude-3-5-sonnet-20240620", messages=[{"role": "user", "content": prompt}])
         return {"status": "success", "risks": response.choices[0].message.content}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -71,7 +71,7 @@ async def analyze_risks(data: ProjectDetails):
 async def generate_final_report(data: FinalReportRequest):
     prompt = f"""Write a DPIA for {data.project_name}. Use the risks: {data.identified_risks}. Include a Markdown table for Risks | Mitigation | Evidence."""
     try:
-        response = completion(model="anthropic/claude-3-5-sonnet-20240620", messages=[{"role": "user", "content": prompt}])
+        response = completion(model="claude-3-5-sonnet-20240620", messages=[{"role": "user", "content": prompt}])
         ai_report = response.choices[0].message.content
         
         doc = Document()
