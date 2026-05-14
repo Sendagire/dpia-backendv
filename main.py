@@ -17,6 +17,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- 1. ADD THIS HOME ROUTE (Fixes "Not Found" at root) ---
+@app.get("/")
+def home():
+    return {"message": "✅ DPIA Enterprise API is running 24/7!"}
+
 class ProjectDetails(BaseModel):
     project_name: str
     project_desc: str
@@ -33,9 +38,9 @@ class FinalReportRequest(ProjectDetails):
 async def analyze_risks(data: ProjectDetails):
     prompt = f"Identify 3 privacy risks for: {data.project_name}. Provide Description and Mitigation."
     try:
-        # Use the latest Anthropic model name
+        # --- 2. ADD 'anthropic/' PREFIX HERE ---
         response = completion(
-            model="claude-3-5-sonnet-20241022", 
+            model="anthropic/claude-3-5-sonnet-20241022", 
             messages=[{"role": "user", "content": prompt}],
             api_key=os.environ.get("ANTHROPIC_API_KEY")
         )
@@ -47,8 +52,9 @@ async def analyze_risks(data: ProjectDetails):
 async def generate_final_report(data: FinalReportRequest):
     prompt = f"Act as a Privacy Counsel. Write a DPIA for {data.project_name}. Risks: {data.identified_risks}. Include a Markdown table for Risks | Mitigation | Evidence Required."
     try:
+        # --- 2. ADD 'anthropic/' PREFIX HERE ---
         response = completion(
-            model="claude-3-5-sonnet-20241022", 
+            model="anthropic/claude-3-5-sonnet-20241022", 
             messages=[{"role": "user", "content": prompt}],
             api_key=os.environ.get("ANTHROPIC_API_KEY")
         )
