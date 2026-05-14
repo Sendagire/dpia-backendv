@@ -1,5 +1,5 @@
 fastapi
 uvicorn
-litellm
+anthropic
 python-docx
 pydantic
