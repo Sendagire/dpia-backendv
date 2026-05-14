@@ -3,23 +3,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from litellm import completion
+import anthropic
 from docx import Document
-from docx.shared import Pt, RGBColor
 
-app = FastAPI(title="DPIA Enterprise API")
+app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get("/")
-def home():
-    return {"message": "✅ DPIA Enterprise API is running 24/7!"}
+# Initialize official Anthropic client
+client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 class ProjectDetails(BaseModel):
     project_name: str
@@ -30,42 +27,20 @@ class ProjectDetails(BaseModel):
     third_parties: str
     initial_risk: str
 
-class FinalReportRequest(ProjectDetails):
-    identified_risks: str
-
 @app.post("/api/analyze")
 async def analyze_risks(data: ProjectDetails):
     prompt = f"Identify 3 privacy risks for: {data.project_name}. Provide Description and Mitigation."
     try:
-        # Using the universal alias for Claude 3.5 Sonnet
-        response = completion(
-            model="claude-3-5-sonnet-latest", 
-            messages=[{"role": "user", "content": prompt}],
-            api_key=os.environ.get("ANTHROPIC_API_KEY")
+        # OFFICIAL ANTHROPIC CALL
+        response = client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=1000,
+            messages=[{"role": "user", "content": prompt}]
         )
-        return {"status": "success", "risks": response.choices[0].message.content}
+        return {"status": "success", "risks": response.content[0].text}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.post("/api/generate-report")
-async def generate_final_report(data: FinalReportRequest):
-    prompt = f"Act as a Privacy Counsel. Write a DPIA for {data.project_name}. Risks: {data.identified_risks}. Include a Markdown table for Risks | Mitigation | Evidence Required."
-    try:
-        # Using the universal alias for Claude 3.5 Sonnet
-        response = completion(
-            model="claude-3-5-sonnet-latest", 
-            messages=[{"role": "user", "content": prompt}],
-            api_key=os.environ.get("ANTHROPIC_API_KEY")
-        )
-        ai_report = response.choices[0].message.content
-        
-        doc = Document()
-        doc.add_heading('Data Protection Impact Assessment', 0)
-        doc.add_paragraph(ai_report)
-        
-        file_path = f"/tmp/{data.project_name.replace(' ', '_')}_DPIA.docx"
-        doc.save(file_path)
-        
-        return FileResponse(path=file_path, filename="DPIA.docx", media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+@app.get("/")
+def home():
+    return {"message": "✅ DPIA Engine is live and clean!"}
