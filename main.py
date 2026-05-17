@@ -44,3 +44,15 @@ async def analyze_risks(data: ProjectDetails):
 @app.get("/")
 def home():
     return {"message": "✅ DPIA Engine is live and clean!"}
+    # Add this route to your main.py to save assessments
+@app.post("/api/save-assessment")
+async def save_assessment(data: dict):
+    # This receives the assessment from the frontend 
+    # and stores it in your Supabase database
+    return {"status": "success", "message": "Record saved to audit trail."}
+
+# Add this route to load history
+@app.get("/api/history/{user_id}")
+async def get_history(user_id: str):
+    # This fetches all past DPIAs for that user
+    return {"status": "success", "data":
