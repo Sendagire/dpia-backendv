@@ -1,27 +1,12 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import anthropic
-from docx import Document
-# Add this import at the top
 from supabase import create_client
 
-# Initialize Supabase Admin client
-supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
-
-@app.post("/api/analyze")
-async def analyze_risks(data: ProjectDetails, user_id: str): # Add user_id from frontend
-    # CHECK LICENSE ON THE SERVER SIDE (The ultimate Bouncer)
-    license_check = supabase.table("profiles").select("is_active").eq("id", user_id).single().execute()
-    
-    if not license_check.data or not license_check.data.get("is_active"):
-        raise HTTPException(status_code=403, detail="License inactive.")
-    
-    # ... rest of your AI logic ...
-
-app = FastAPI()
+app = FastAPI(title="DPIA Enterprise API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,8 +15,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize official Anthropic client
+# Initialize Clients
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_KEY"))
 
 class ProjectDetails(BaseModel):
     project_name: str
@@ -41,14 +27,22 @@ class ProjectDetails(BaseModel):
     retention: str
     third_parties: str
     initial_risk: str
+    user_id: str  # Added so we can check license
 
-
+@app.get("/")
+def home():
+    return {"message": "✅ DPIA Engine is live and clean!"}
 
 @app.post("/api/analyze")
 async def analyze_risks(data: ProjectDetails):
-    prompt = f"Identify 3 privacy risks for: {data.project_name}. Provide Description and Mitigation."
+    # 1. License Check
+    license_check = supabase.table("profiles").select("is_active").eq("id", data.user_id).single().execute()
+    if not license_check.data or not license_check.data.get("is_active"):
+        raise HTTPException(status_code=403, detail="License inactive.")
+    
+    # 2. AI Logic
+    prompt = f"Identify privacy risks for: {data.project_name}. Description: {data.project_desc}. Provide Description and Mitigation."
     try:
-        # OFFICIAL ANTHROPIC CALL
         response = client.messages.create(
             model="claude-3-5-sonnet-20241022",
             max_tokens=1000,
@@ -58,18 +52,18 @@ async def analyze_risks(data: ProjectDetails):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.get("/")
-def home():
-    return {"message": "✅ DPIA Engine is live and clean!"}
-    # Add this route to your main.py to save assessments
 @app.post("/api/save-assessment")
 async def save_assessment(data: dict):
-    # This receives the assessment from the frontend 
-    # and stores it in your Supabase database
-    return {"status": "success", "message": "Record saved to audit trail."}
+    try:
+        supabase.table("assessments").insert(data).execute()
+        return {"status": "success", "message": "Record saved to audit trail."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
-# Add this route to load history
 @app.get("/api/history/{user_id}")
 async def get_history(user_id: str):
-    # This fetches all past DPIAs for that user
-    return {"status": "success", "data":
+    try:
+        response = supabase.table("assessments").select("*").eq("user_id", user_id).execute()
+        return {"status": "success", "data": response.data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
