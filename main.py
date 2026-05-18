@@ -27,6 +27,22 @@ class ProjectDetails(BaseModel):
     third_parties: str
     initial_risk: str
 
+# Add this import at the top
+from supabase import create_client
+
+# Initialize Supabase Admin client
+supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
+
+@app.post("/api/analyze")
+async def analyze_risks(data: ProjectDetails, user_id: str): # Add user_id from frontend
+    # CHECK LICENSE ON THE SERVER SIDE (The ultimate Bouncer)
+    license_check = supabase.table("profiles").select("is_active").eq("id", user_id).single().execute()
+    
+    if not license_check.data or not license_check.data.get("is_active"):
+        raise HTTPException(status_code=403, detail="License inactive.")
+    
+    # ... rest of your AI logic ...
+
 @app.post("/api/analyze")
 async def analyze_risks(data: ProjectDetails):
     prompt = f"Identify 3 privacy risks for: {data.project_name}. Provide Description and Mitigation."
