@@ -2,4 +2,5 @@ fastapi
 uvicorn
 anthropic
 python-docx
+supabase
 pydantic
