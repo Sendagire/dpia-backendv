@@ -27,7 +27,7 @@ class ProjectDetails(BaseModel):
     retention: str
     third_parties: str
     initial_risk: str
-    user_id: str  # Added so we can check license
+    user_id: str
 
 @app.get("/")
 def home():
@@ -35,12 +35,12 @@ def home():
 
 @app.post("/api/analyze")
 async def analyze_risks(data: ProjectDetails):
-    # 1. License Check
+    # License Check
     license_check = supabase.table("profiles").select("is_active").eq("id", data.user_id).single().execute()
     if not license_check.data or not license_check.data.get("is_active"):
         raise HTTPException(status_code=403, detail="License inactive.")
     
-    # 2. AI Logic
+    # AI Logic
     prompt = f"Identify privacy risks for: {data.project_name}. Description: {data.project_desc}. Provide Description and Mitigation."
     try:
         response = client.messages.create(
@@ -67,6 +67,8 @@ async def get_history(user_id: str):
         return {"status": "success", "data": response.data}
     except Exception as e:
         return {"status": "error", "message": str(e)}
-        if __name__ == "__main__":
+
+# THIS MUST BE AT THE VERY BOTTOM, ALIGNED TO THE LEFT
+if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=10000)
