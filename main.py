@@ -3,8 +3,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-import anthropic
+from litellm import completion
 from supabase import create_client
+from docx import Document
 
 app = FastAPI(title="DPIA Enterprise API")
 
@@ -16,7 +17,7 @@ app.add_middleware(
 )
 
 # Initialize Clients
-client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+os.environ["GOOGLE_API_KEY"] = os.environ.get("GOOGLE_API_KEY")
 supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_KEY"))
 
 class ProjectDetails(BaseModel):
@@ -29,26 +30,16 @@ class ProjectDetails(BaseModel):
     initial_risk: str
     user_id: str
 
-@app.get("/")
-def home():
-    return {"message": "✅ DPIA Engine is live and clean!"}
-
 @app.post("/api/analyze")
 async def analyze_risks(data: ProjectDetails):
-    # License Check
-    license_check = supabase.table("profiles").select("is_active").eq("id", data.user_id).single().execute()
-    if not license_check.data or not license_check.data.get("is_active"):
-        raise HTTPException(status_code=403, detail="License inactive.")
-    
-    # AI Logic
-    prompt = f"Identify privacy risks for: {data.project_name}. Description: {data.project_desc}. Provide Description and Mitigation."
+    prompt = f"Identify 3 privacy risks for: {data.project_name}. Provide Description and Mitigation."
     try:
-        response = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=1000,
+        # Using Gemini Flash - Global and Fast
+        response = completion(
+            model="gemini/gemini-1.5-flash", 
             messages=[{"role": "user", "content": prompt}]
         )
-        return {"status": "success", "risks": response.content[0].text}
+        return {"status": "success", "risks": response.choices[0].message.content}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -56,19 +47,14 @@ async def analyze_risks(data: ProjectDetails):
 async def save_assessment(data: dict):
     try:
         supabase.table("assessments").insert(data).execute()
-        return {"status": "success", "message": "Record saved to audit trail."}
+        return {"status": "success", "message": "Record saved."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.get("/api/history/{user_id}")
-async def get_history(user_id: str):
-    try:
-        response = supabase.table("assessments").select("*").eq("user_id", user_id).execute()
-        return {"status": "success", "data": response.data}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+@app.get("/")
+def home():
+    return {"message": "✅ API Active"}
 
-# THIS MUST BE AT THE VERY BOTTOM, ALIGNED TO THE LEFT
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=10000)
